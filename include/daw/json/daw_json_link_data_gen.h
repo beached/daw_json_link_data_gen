@@ -8,8 +8,20 @@
 
 #pragma once
 
+#include "impl/daw_json_generators_fwd.h"
+
+#include <daw/json/daw_json_link.h>
+
+#include <random>
+
 namespace daw::json {
-
-}
-
-
+	template<typename T>
+	inline auto generate_data_for( ) {
+		using json_member = json_details::json_deduced_type<T>;
+		auto r = std::random_device( );
+		auto eng = std::default_random_engine( r( ) );
+		using State = BasicParsePolicy<options::parse_flags_t<>::value>;
+		auto state = State{ };
+		return json_details::value_generator<json_member>{ }( eng, state );
+	}
+} // namespace daw::json

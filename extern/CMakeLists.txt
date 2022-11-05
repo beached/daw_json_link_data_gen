@@ -6,15 +6,15 @@
 # Official repository: https://github.com/beached/daw_json_link_data_gen
 #
 
-include(FetchContent)
+include( FetchContent )
 
-option(DAW_ENABLE_TESTING "Build unit tests" OFF)
-set(DAW_ENABLE_TESTING OFF)
+option( DAW_ENABLE_TESTING "Build unit tests" OFF )
+set( DAW_ENABLE_TESTING OFF )
 
 FetchContent_Declare(
         daw_json_link
         GIT_REPOSITORY https://github.com/beached/daw_json_link.git
-        GIT_TAG v3 
+        GIT_TAG v3
 )
-FetchContent_MakeAvailable(daw_json_link)
+FetchContent_MakeAvailable( daw_json_link )
 

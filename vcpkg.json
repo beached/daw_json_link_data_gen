@@ -3,7 +3,7 @@
   "name": "daw-json-link-data-gen",
   "version": "0.1.0",
   "dependencies": [
-		"daw-json-link"
+    "daw-json-link"
   ]
 }
 
