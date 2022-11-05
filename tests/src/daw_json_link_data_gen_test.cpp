@@ -12,6 +12,21 @@
 #include <string>
 #include <vector>
 
+struct Foo {
+	int x;
+	std::string y;
+};
+
+namespace daw::json {
+	template<>
+	struct json_data_contract<Foo> {
+		static constexpr char const x[] = "x";
+		static constexpr char const y[] = "y";
+
+		using type = json_member_list<json_number<x, int>, json_string<y>>;
+	};
+} // namespace daw::json
+
 int main( ) {
 	auto osig = daw::json::generate_data_for<std::optional<int>>( );
 	auto sig = daw::json::generate_data_for<signed>( );
@@ -20,5 +35,7 @@ int main( ) {
 	auto b = daw::json::generate_data_for<bool>( );
 	auto str = daw::json::generate_data_for<std::string>( );
 	auto v = daw::json::generate_data_for<std::vector<int>>( );
+	auto c = daw::json::generate_data_for<Foo>( );
+	auto cv = daw::json::generate_data_for<std::vector<Foo>>( );
 	return sig;
 }
