@@ -198,6 +198,7 @@ namespace daw::json {
 
 int main( ) {
 	using namespace daw::json;
+	using namespace daw::data_gen;
 	/*
 	auto osig = generate_data_for<std::optional<int>>( );
 	auto sig = generate_data_for<signed>( );

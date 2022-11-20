@@ -63,9 +63,11 @@ namespace daw::data_gen {
 	struct default_value_generator<basic_data_types::String, T> {};
 } // namespace daw::data_gen
 
-namespace daw::json::json_details {
+namespace daw::data_gen::datagen_details {
+	using daw::json::JsonParseTypes;
 	template<typename JsonMember, typename = void,
-	         typename = std::enable_if_t<is_a_json_type_v<JsonMember>>>
+	         typename = std::enable_if_t<
+	           daw::json::json_details::is_a_json_type_v<JsonMember>>>
 	struct value_generator;
 
 	template<typename JsonMember, JsonParseTypes ExpectedType>
@@ -175,12 +177,12 @@ namespace daw::json::json_details {
 			static auto dist = std::uniform_int_distribution<unsigned>( 0, 5 );
 			using constructor_t = typename JsonMember::constructor_t;
 			auto const construct_empty = [&] {
-				if constexpr( std::is_invocable_v<
-				                constructor_t,
-				                concepts::construct_nullable_with_empty_t> ) {
+				if constexpr( std::is_invocable_v<constructor_t,
+				                                  daw::json::concepts::
+				                                    construct_nullable_with_empty_t> ) {
 					return construct_value(
 					  template_args<typename JsonMember::wrapped_type, constructor_t>,
-					  state, concepts::construct_nullable_with_empty );
+					  state, daw::json::concepts::construct_nullable_with_empty );
 				} else {
 					return construct_value(
 					  template_args<typename JsonMember::wrapped_type, constructor_t>,
@@ -324,8 +326,10 @@ namespace daw::json::json_details {
 	template<typename JsonMember, typename RandomEngine, typename State>
 	struct value_generator_kv_iterator {
 		using iterator_category = std::random_access_iterator_tag;
-		using key_type_t = json_link_no_name<typename JsonMember::key_type_t>;
-		using value_type_t = json_link_no_name<typename JsonMember::value_type_t>;
+		using key_type_t =
+		  daw::json::json_link_no_name<typename JsonMember::key_type_t>;
+		using value_type_t =
+		  daw::json::json_link_no_name<typename JsonMember::value_type_t>;
 		using kv_t = std::pair<typename key_type_t::parse_to_t,
 		                       typename value_type_t::parse_to_t>;
 		using container_t = typename JsonMember::parse_to_t;
@@ -450,8 +454,9 @@ namespace daw::json::json_details {
 			auto last = it_t( ary_size );
 			using constructor_t = typename JsonMember::constructor_t;
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state, first,
-			  last );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, first, last );
 		}
 	};
 
@@ -473,8 +478,8 @@ namespace daw::json::json_details {
 			auto last = it_t( ary_size );
 			using constructor_t = typename JsonMember::constructor_t;
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state, first,
-			  last );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			constructor_t>, state, first, last );
 			  */
 			return { };
 		}
@@ -497,8 +502,9 @@ namespace daw::json::json_details {
 			auto last = it_t( ary_size );
 			using constructor_t = typename JsonMember::constructor_t;
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state, first,
-			  last );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, first, last );
 		}
 	};
 
@@ -507,31 +513,35 @@ namespace daw::json::json_details {
 		/*
 		auto old_path = DAW_MOVE( state.path );
 		auto const ae = daw::on_exit_success( [&] {
-			state.path = DAW_MOVE( old_path );
+		  state.path = DAW_MOVE( old_path );
 		} );
 		state.path = fmt::format(
 		  "{}.{}", old_path, static_cast<std::string_view>( JsonMember::name ) );*/
-		return value_generator<json_link_no_name<JsonMember>>{ }( reng, state );
+		return value_generator<daw::json::json_link_no_name<JsonMember>>{ }(
+		  reng, state );
 	}
 
 	template<typename, typename>
 	struct class_generator;
 
 	template<typename JsonMember, typename... JsonMembers>
-	struct class_generator<JsonMember, json_member_list<JsonMembers...>> {
+	struct class_generator<JsonMember,
+	                       daw::json::json_member_list<JsonMembers...>> {
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
 		type operator( )( RandomEngine &reng, State &state ) const {
 			using constructor_t = typename JsonMember::constructor_t;
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state,
-			  visit_json_member<JsonMembers>( reng, state )... );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, visit_json_member<JsonMembers>( reng, state )... );
 		}
 	};
 
 	template<typename JsonMember, typename... JsonMembers>
-	struct class_generator<JsonMember, json_tuple_member_list<JsonMembers...>> {
+	struct class_generator<JsonMember,
+	                       daw::json::json_tuple_member_list<JsonMembers...>> {
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -539,8 +549,9 @@ namespace daw::json::json_details {
 			using constructor_t = typename JsonMember::constructor_t;
 
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state,
-			  visit_json_member<JsonMembers>( reng, state )... );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, visit_json_member<JsonMembers>( reng, state )... );
 		}
 	};
 
@@ -553,9 +564,9 @@ namespace daw::json::json_details {
 		DAW_ATTRIB_FLATTEN type operator( )( RandomEngine &reng,
 		                                     State &state ) const {
 
-			return class_generator<JsonMember, json_data_contract_trait_t<
+			return class_generator<JsonMember, daw::json::json_data_contract_trait_t<
 			                                     typename JsonMember::base_type>>{ }(
 			  reng, state );
 		}
 	};
-} // namespace daw::json::json_details
+} // namespace daw::data_gen::datagen_details

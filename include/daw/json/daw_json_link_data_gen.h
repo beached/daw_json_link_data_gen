@@ -14,8 +14,8 @@
 
 #include <random>
 
-namespace daw::json {
-	struct state_t : BasicParsePolicy<> {
+namespace daw::data_gen {
+	struct state_t : daw::json::BasicParsePolicy<> {
 		std::string path{ };
 	};
 
@@ -25,7 +25,8 @@ namespace daw::json {
 
 	template<typename T>
 	inline auto generate_data_for( ) {
-		using json_member_noname = json_details::json_deduced_type<T>;
+		using namespace daw::json;
+		using json_member_noname = ::daw::json::json_details::json_deduced_type<T>;
 		using json_member =
 		  typename json_member_noname::template with_name<root_name::value>;
 		using minstd_rand =
@@ -34,6 +35,6 @@ namespace daw::json {
 		auto r = minstd_rand( );
 		auto eng = std::default_random_engine( r( ) );
 		auto state = state_t{ };
-		return json_details::value_generator<json_member>{ }( eng, state );
+		return datagen_details::value_generator<json_member>{ }( eng, state );
 	}
-} // namespace daw::json
+} // namespace daw::data_gen

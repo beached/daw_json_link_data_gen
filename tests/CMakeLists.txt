@@ -6,7 +6,12 @@
 # Official repository: https://github.com/beached/daw_json_link_data_gen
 #
 
-add_compile_options( -fsanitize=address,undefined )
+if( MSVC )
+    add_compile_options( -DDEBUG /permissive- /EHsc /fsanitize=address )
+    add_link_options( /fsanitize=address -fno-omit-frame-pointer )
+else()
+    add_compile_options( -fsanitize=address,undefined )
+endif()
 
 find_package( Boost REQUIRED )
 
