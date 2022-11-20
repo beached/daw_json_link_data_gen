@@ -16,5 +16,12 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/beached/daw_json_link.git
         GIT_TAG v3
 )
-FetchContent_MakeAvailable( daw_json_link )
+
+FetchContent_Declare(
+        fmtlib
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 9.1.0
+)
+
+FetchContent_MakeAvailable( daw_json_link fmtlib )
 

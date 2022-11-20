@@ -3,7 +3,9 @@
   "name": "daw-json-link-data-gen",
   "version": "0.1.0",
   "dependencies": [
-    "daw-json-link"
+    "boost-container",
+    "daw-json-link",
+    "fmt"
   ]
 }
 

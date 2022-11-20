@@ -8,14 +8,66 @@
 
 #pragma once
 
+#include "../../data_faker/concepts/daw_writable_output.h"
+
+#include <daw/daw_scope_guard.h>
 #include <daw/json/daw_json_link.h>
 
+#include <fmt/format.h>
 #include <random>
 #include <type_traits>
 
-namespace daw::json::json_details {
+namespace daw::data_gen {
+	enum class basic_data_types {
+		String,
+		Signed,
+		Unsigned,
+		Real,
+		Bool,
+		Array,
+		Class,
+		Nullable
+	};
+
+	template<typename>
+	inline constexpr daw::string_view valid_string_chars =
+	  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-="
+	  "_+[]{}|;':,.<>/? 	";
+
+	template<typename RandomEngine>
+	static char gen_random_character( RandomEngine &reng ) {
+		static_assert( not valid_string_chars<char>.empty( ) );
+		static auto dist = std::uniform_int_distribution<std::size_t>(
+		  0, valid_string_chars<char>.size( ) );
+
+		return valid_string_chars<char>.data( )[dist( reng )];
+	}
+
+	template<typename T, typename RandomEngine>
+	T gen_random_string( RandomEngine &reng ) {
+		T result;
+		if constexpr( std::is_same_v<T, std::string> ) {
+			result.reserve( 4096U );
+		}
+		char c = gen_random_character( reng );
+		while( c != 0 ) {
+			put_output( result, c );
+			c = gen_random_character( reng );
+		}
+		return result;
+	}
+	template<basic_data_types, typename, typename = void>
+	struct default_value_generator;
+
+	template<typename T>
+	struct default_value_generator<basic_data_types::String, T> {};
+} // namespace daw::data_gen
+
+namespace daw::data_gen::datagen_details {
+	using daw::json::JsonParseTypes;
 	template<typename JsonMember, typename = void,
-	         typename = std::enable_if_t<is_a_json_type_v<JsonMember>>>
+	         typename = std::enable_if_t<
+	           daw::json::json_details::is_a_json_type_v<JsonMember>>>
 	struct value_generator;
 
 	template<typename JsonMember, JsonParseTypes ExpectedType>
@@ -34,7 +86,7 @@ namespace daw::json::json_details {
 		template<typename RandomEngine, typename State>
 		type operator( )( RandomEngine &reng, State const & ) const {
 			static auto dist = std::uniform_real_distribution<type>(
-			  0, std::numeric_limits<type>::max( ) );
+			  0, 1.0 /*std::numeric_limits<type>::max( )*/ );
 			static auto dsign = std::uniform_int_distribution<int>( 0, 1 );
 			auto result = dist( reng );
 			if( dsign( reng ) ) {
@@ -91,31 +143,6 @@ namespace daw::json::json_details {
 		}
 	};
 
-	template<typename>
-	inline constexpr daw::string_view valid_string_chars =
-	  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-="
-	  "_+[]{}|;':,.<>/? 	";
-
-	template<typename RandomEngine>
-	static char gen_random_character( RandomEngine &reng ) {
-		static_assert( not valid_string_chars<char>.empty( ) );
-		static auto dist = std::uniform_int_distribution<std::size_t>(
-		  0, valid_string_chars<char>.size( ) );
-
-		return valid_string_chars<char>.data( )[dist( reng )];
-	}
-
-	template<typename T, typename RandomEngine>
-	T gen_random_string( RandomEngine &reng ) {
-		T result;
-		char c = gen_random_character( reng );
-		while( c != 0 ) {
-			concepts::writable_output_trait<T>::put( result, c );
-			c = gen_random_character( reng );
-		}
-		return result;
-	}
-
 	template<typename JsonMember>
 	struct value_generator<JsonMember,
 	                       std::enable_if_t<member_is_parse_type_v<
@@ -124,7 +151,7 @@ namespace daw::json::json_details {
 
 		template<typename RandomEngine, typename State>
 		type operator( )( RandomEngine &reng, State const & ) const {
-			return gen_random_string<type>( reng );
+			return data_gen::gen_random_string<type>( reng );
 		}
 	};
 
@@ -136,7 +163,7 @@ namespace daw::json::json_details {
 
 		template<typename RandomEngine, typename State>
 		type operator( )( RandomEngine &reng, State const & ) const {
-			return gen_random_string<type>( reng );
+			return data_gen::gen_random_string<type>( reng );
 		}
 	};
 
@@ -150,12 +177,12 @@ namespace daw::json::json_details {
 			static auto dist = std::uniform_int_distribution<unsigned>( 0, 5 );
 			using constructor_t = typename JsonMember::constructor_t;
 			auto const construct_empty = [&] {
-				if constexpr( std::is_invocable_v<
-				                constructor_t,
-				                concepts::construct_nullable_with_empty_t> ) {
+				if constexpr( std::is_invocable_v<constructor_t,
+				                                  daw::json::concepts::
+				                                    construct_nullable_with_empty_t> ) {
 					return construct_value(
 					  template_args<typename JsonMember::wrapped_type, constructor_t>,
-					  state, concepts::construct_nullable_with_empty );
+					  state, daw::json::concepts::construct_nullable_with_empty );
 				} else {
 					return construct_value(
 					  template_args<typename JsonMember::wrapped_type, constructor_t>,
@@ -175,7 +202,7 @@ namespace daw::json::json_details {
 	};
 
 	template<typename>
-	inline static constexpr std::size_t max_array_size = 100ULL; //'000'000ULL;
+	inline static constexpr std::size_t max_array_size = 100ULL; // 1'000'000ULL;
 
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
@@ -296,13 +323,128 @@ namespace daw::json::json_details {
 		}
 	};
 
+	template<typename JsonMember, typename RandomEngine, typename State>
+	struct value_generator_kv_iterator {
+		using iterator_category = std::random_access_iterator_tag;
+		using key_type_t =
+		  daw::json::json_link_no_name<typename JsonMember::key_type_t>;
+		using value_type_t =
+		  daw::json::json_link_no_name<typename JsonMember::value_type_t>;
+		using kv_t = std::pair<typename key_type_t::parse_to_t,
+		                       typename value_type_t::parse_to_t>;
+		using container_t = typename JsonMember::parse_to_t;
+		using constructor_t = typename JsonMember::constructor_t;
+
+		using reference = kv_t &;
+		using pointer = kv_t *;
+		using difference_type = std::ptrdiff_t;
+
+		std::size_t m_count = 0;
+		RandomEngine *m_engine = nullptr;
+		State *m_state = nullptr;
+		mutable std::optional<kv_t> m_last = std::nullopt;
+
+		// Construct start iter
+		constexpr explicit value_generator_kv_iterator( RandomEngine &reng,
+		                                                State &state )
+		  : m_engine( std::addressof( reng ) )
+		  , m_state( std::addressof( state ) ){ };
+
+		// Construct end iter
+		constexpr explicit value_generator_kv_iterator( std::size_t count )
+		  : m_count( count ){ };
+
+		constexpr value_generator_kv_iterator &operator++( ) {
+			m_last.reset( );
+			++m_count;
+			return *this;
+		}
+
+		constexpr value_generator_kv_iterator operator++( int ) & {
+			auto result = *this;
+			operator++( );
+			return result;
+		}
+
+		constexpr value_generator_kv_iterator &operator--( ) {
+			m_last.reset( );
+			--m_count;
+			return *this;
+		}
+
+		constexpr value_generator_kv_iterator operator--( int ) & {
+			auto result = *this;
+			operator--( );
+			return result;
+		}
+
+		constexpr difference_type
+		operator-( value_generator_kv_iterator const &rhs ) const {
+			return static_cast<difference_type>( m_count ) -
+			       static_cast<difference_type>( rhs.m_count );
+		}
+
+		constexpr void ensure_last( ) const {
+			if( not m_last ) {
+				m_last =
+				  kv_t{ value_generator<key_type_t>{ }( *m_engine, *m_state ),
+				        value_generator<value_type_t>{ }( *m_engine, *m_state ) };
+			}
+		}
+
+		constexpr kv_t const &operator*( ) const {
+			ensure_last( );
+			return *m_last;
+		}
+
+		constexpr kv_t &operator*( ) {
+			ensure_last( );
+			return *m_last;
+		}
+
+		constexpr kv_t const *operator->( ) const {
+			ensure_last( );
+			return std::addressof( *m_last );
+		}
+
+		constexpr kv_t *operator->( ) {
+			ensure_last( );
+			return std::addressof( *m_last );
+		}
+
+		constexpr bool operator==( value_generator_kv_iterator const &rhs ) const {
+			return m_count == rhs.m_count;
+		}
+
+		constexpr bool operator!=( value_generator_kv_iterator const &rhs ) const {
+			return m_count != rhs.m_count;
+		}
+
+		constexpr bool operator<( value_generator_kv_iterator const &rhs ) const {
+			return m_count < rhs.m_count;
+		}
+
+		constexpr bool operator>( value_generator_kv_iterator const &rhs ) const {
+			return m_count > rhs.m_count;
+		}
+
+		constexpr bool operator<=( value_generator_kv_iterator const &rhs ) const {
+			return m_count <= rhs.m_count;
+		}
+
+		constexpr bool operator>=( value_generator_kv_iterator const &rhs ) const {
+			return m_count >= rhs.m_count;
+		}
+	};
+
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
 	                                     JsonMember, JsonParseTypes::Array>>> {
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
-		type operator( )( RandomEngine &reng, State &state ) const {
+		DAW_ATTRIB_FLATTEN type operator( )( RandomEngine &reng,
+		                                     State &state ) const {
 			static auto sz_dist =
 			  std::uniform_int_distribution<unsigned>( 0, max_array_size<type> );
 			auto const ary_size = sz_dist( reng );
@@ -312,24 +454,104 @@ namespace daw::json::json_details {
 			auto last = it_t( ary_size );
 			using constructor_t = typename JsonMember::constructor_t;
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state, first,
-			  last );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, first, last );
 		}
 	};
+
+	template<typename JsonMember>
+	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
+	                                     JsonMember, JsonParseTypes::Custom>>> {
+		using type = typename JsonMember::parse_to_t;
+
+		template<typename RandomEngine, typename State>
+		DAW_ATTRIB_FLATTEN type operator( )( RandomEngine &reng,
+		                                     State &state ) const {
+			/*
+			static auto sz_dist =
+			  std::uniform_int_distribution<unsigned>( 0, max_array_size<type> );
+			auto const ary_size = sz_dist( reng );
+			using it_t =
+			  value_generator_array_iterator<JsonMember, RandomEngine, State>;
+			auto first = it_t( reng, state );
+			auto last = it_t( ary_size );
+			using constructor_t = typename JsonMember::constructor_t;
+			return construct_value(
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			constructor_t>, state, first, last );
+			  */
+			return { };
+		}
+	};
+
+	template<typename JsonMember>
+	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
+	                                     JsonMember, JsonParseTypes::KeyValue>>> {
+		using type = typename JsonMember::parse_to_t;
+
+		template<typename RandomEngine, typename State>
+		DAW_ATTRIB_FLATTEN type operator( )( RandomEngine &reng,
+		                                     State &state ) const {
+
+			static auto sz_dist =
+			  std::uniform_int_distribution<unsigned>( 0, max_array_size<type> );
+			auto const ary_size = sz_dist( reng );
+			using it_t = value_generator_kv_iterator<JsonMember, RandomEngine, State>;
+			auto first = it_t( reng, state );
+			auto last = it_t( ary_size );
+			using constructor_t = typename JsonMember::constructor_t;
+			return construct_value(
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, first, last );
+		}
+	};
+
+	template<typename JsonMember, typename RandomEngine, typename State>
+	constexpr auto visit_json_member( RandomEngine &reng, State &state ) {
+		/*
+		auto old_path = DAW_MOVE( state.path );
+		auto const ae = daw::on_exit_success( [&] {
+		  state.path = DAW_MOVE( old_path );
+		} );
+		state.path = fmt::format(
+		  "{}.{}", old_path, static_cast<std::string_view>( JsonMember::name ) );*/
+		return value_generator<daw::json::json_link_no_name<JsonMember>>{ }(
+		  reng, state );
+	}
 
 	template<typename, typename>
 	struct class_generator;
 
 	template<typename JsonMember, typename... JsonMembers>
-	struct class_generator<JsonMember, json_member_list<JsonMembers...>> {
+	struct class_generator<JsonMember,
+	                       daw::json::json_member_list<JsonMembers...>> {
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
 		type operator( )( RandomEngine &reng, State &state ) const {
 			using constructor_t = typename JsonMember::constructor_t;
 			return construct_value(
-			  template_args<json_result<JsonMember>, constructor_t>, state,
-			  value_generator<JsonMembers>{ }( reng, state )... );
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, visit_json_member<JsonMembers>( reng, state )... );
+		}
+	};
+
+	template<typename JsonMember, typename... JsonMembers>
+	struct class_generator<JsonMember,
+	                       daw::json::json_tuple_member_list<JsonMembers...>> {
+		using type = typename JsonMember::parse_to_t;
+
+		template<typename RandomEngine, typename State>
+		type operator( )( RandomEngine &reng, State &state ) const {
+			using constructor_t = typename JsonMember::constructor_t;
+
+			return construct_value(
+			  template_args<daw::json::json_details::json_result<JsonMember>,
+			                constructor_t>,
+			  state, visit_json_member<JsonMembers>( reng, state )... );
 		}
 	};
 
@@ -339,10 +561,12 @@ namespace daw::json::json_details {
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
-		type operator( )( RandomEngine &reng, State &state ) const {
-			return class_generator<JsonMember, json_data_contract_trait_t<
+		DAW_ATTRIB_FLATTEN type operator( )( RandomEngine &reng,
+		                                     State &state ) const {
+
+			return class_generator<JsonMember, daw::json::json_data_contract_trait_t<
 			                                     typename JsonMember::base_type>>{ }(
 			  reng, state );
 		}
 	};
-} // namespace daw::json::json_details
+} // namespace daw::data_gen::datagen_details
