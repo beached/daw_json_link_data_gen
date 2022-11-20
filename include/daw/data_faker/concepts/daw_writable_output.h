@@ -14,6 +14,7 @@
 #include <daw/daw_algorithm.h>
 #include <daw/daw_character_traits.h>
 #include <daw/daw_string_view.h>
+#include <daw/json/impl/daw_json_assert.h>
 
 #include <cstdio>
 #include <iostream>
