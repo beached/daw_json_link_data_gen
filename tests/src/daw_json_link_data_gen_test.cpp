@@ -10,9 +10,6 @@
 #include <daw/json/daw_json_link_data_gen.h>
 
 #include <boost/container/small_vector.hpp>
-#include <fstream>
-#include <optional>
-#include <ostream>
 #include <string>
 #include <vector>
 
@@ -61,10 +58,11 @@ struct root_object_t {
 }; // root_object_t
 
 namespace daw::json {
+	static constexpr char const mem_channel[] = "channel";
+	static constexpr char const mem_instId[] = "instId";
+
 	template<>
 	struct json_data_contract<arg_t> {
-		static constexpr char const mem_channel[] = "channel";
-		static constexpr char const mem_instId[] = "instId";
 		using type =
 		  json_member_list<json_string<mem_channel>, json_string<mem_instId>>;
 
@@ -89,13 +87,14 @@ namespace daw::json {
 			                              p.orderCount );
 		}
 	};
+	static constexpr char const mem_asks[] = "asks";
+	static constexpr char const mem_bids[] = "bids";
+	static constexpr char const mem_ts[] = "ts";
+	static constexpr char const mem_checksum[] = "checksum";
 
 	template<>
 	struct json_data_contract<data_element_t> {
-		static constexpr char const mem_asks[] = "asks";
-		static constexpr char const mem_bids[] = "bids";
-		static constexpr char const mem_ts[] = "ts";
-		static constexpr char const mem_checksum[] = "checksum";
+
 		using type = json_member_list<
 		  json_array<mem_asks, price_t, price_level_vec_t, price_level_vec_ctor_t>,
 		  json_array<mem_bids, price_t, price_level_vec_t, price_level_vec_ctor_t>>;
@@ -104,12 +103,13 @@ namespace daw::json {
 			return std::forward_as_tuple( value.asks, value.bids );
 		}
 	};
-
+	static constexpr char const mem_arg[] = "arg";
+	static constexpr char const mem_action[] = "action";
+	static constexpr char const mem_data[] = "data";
+	
 	template<>
 	struct json_data_contract<root_object_t> {
-		static constexpr char const mem_arg[] = "arg";
-		static constexpr char const mem_action[] = "action";
-		static constexpr char const mem_data[] = "data";
+
 		using type =
 		  json_member_list<json_class<mem_arg, arg_t>, json_string<mem_action>,
 		                   json_array<mem_data, json_class_no_name<data_element_t>,

@@ -70,13 +70,42 @@ namespace daw::data_gen::datagen_details {
 	           daw::json::json_details::is_a_json_type_v<JsonMember>>>
 	struct value_generator;
 
+	class member_id {
+		std::variant<daw::string_view, std::size_t> m_ident;
+
+	public:
+		explicit constexpr member_id( daw::string_view sv )
+		  : m_ident( sv ) {}
+
+		explicit constexpr member_id( std::size_t n )
+		  : m_ident( n ) {}
+
+		std::string to_string( ) const {
+			return daw::visit_nt(
+			  m_ident,
+			  []( daw::string_view name ) {
+				  return static_cast<std::string>( name );
+			  },
+			  []( std::size_t n ) {
+				  return std::to_string( n );
+			  } );
+		}
+	};
+
 	template<typename JsonMember, JsonParseTypes ExpectedType>
 	inline constexpr bool member_is_parse_type_v =
 	  JsonMember::expected_type == ExpectedType;
 
 	template<typename JsonMember>
-	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Real>>> {
+	struct value_generator<
+	  JsonMember,
+	  std::enable_if_t<member_is_parse_type_v<JsonMember, JsonParseTypes::Real>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
 
 		using type = typename JsonMember::parse_to_t;
 		static_assert( std::is_floating_point_v<type>,
@@ -98,7 +127,13 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Signed>>> {
+	                                     JsonMember, JsonParseTypes::Signed>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
 
 		using type = typename JsonMember::parse_to_t;
 		static_assert(
@@ -115,7 +150,14 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Unsigned>>> {
+	                                     JsonMember, JsonParseTypes::Unsigned>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 		static_assert( std::is_unsigned_v<type>,
 		               "For non std::is_unsigned types, one needs to specialize "
@@ -129,8 +171,16 @@ namespace daw::data_gen::datagen_details {
 	};
 
 	template<typename JsonMember>
-	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Bool>>> {
+	struct value_generator<
+	  JsonMember,
+	  std::enable_if_t<member_is_parse_type_v<JsonMember, JsonParseTypes::Bool>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 		static_assert( std::is_convertible_v<bool, type>,
 		               "For types not convertible to bool, one must specialize "
@@ -146,19 +196,14 @@ namespace daw::data_gen::datagen_details {
 	template<typename JsonMember>
 	struct value_generator<JsonMember,
 	                       std::enable_if_t<member_is_parse_type_v<
-	                         JsonMember, JsonParseTypes::StringEscaped>>> {
-		using type = typename JsonMember::parse_to_t;
+	                         JsonMember, JsonParseTypes::StringEscaped>>>
+	  : member_id {
 
-		template<typename RandomEngine, typename State>
-		type operator( )( RandomEngine &reng, State const & ) const {
-			return data_gen::gen_random_string<type>( reng );
-		}
-	};
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
 
-	template<typename JsonMember>
-	struct value_generator<JsonMember,
-	                       std::enable_if_t<member_is_parse_type_v<
-	                         JsonMember, JsonParseTypes::StringRaw>>> {
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -169,7 +214,33 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Null>>> {
+	                                     JsonMember, JsonParseTypes::StringRaw>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
+		using type = typename JsonMember::parse_to_t;
+
+		template<typename RandomEngine, typename State>
+		type operator( )( RandomEngine &reng, State const & ) const {
+			return data_gen::gen_random_string<type>( reng );
+		}
+	};
+
+	template<typename JsonMember>
+	struct value_generator<
+	  JsonMember,
+	  std::enable_if_t<member_is_parse_type_v<JsonMember, JsonParseTypes::Null>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -224,6 +295,7 @@ namespace daw::data_gen::datagen_details {
 		RandomEngine *m_engine = nullptr;
 		State *m_state = nullptr;
 		mutable std::optional<value_type> m_last = std::nullopt;
+		std::size_t m_pos = 0;
 
 		// Construct start iter
 		constexpr explicit value_generator_array_iterator( RandomEngine &reng,
@@ -238,6 +310,7 @@ namespace daw::data_gen::datagen_details {
 		constexpr value_generator_array_iterator &operator++( ) {
 			m_last.reset( );
 			++m_count;
+			++m_pos;
 			return *this;
 		}
 
@@ -250,6 +323,7 @@ namespace daw::data_gen::datagen_details {
 		constexpr value_generator_array_iterator &operator--( ) {
 			m_last.reset( );
 			--m_count;
+			--m_pos;
 			return *this;
 		}
 
@@ -267,7 +341,7 @@ namespace daw::data_gen::datagen_details {
 
 		constexpr void ensure_last( ) const {
 			if( not m_last ) {
-				m_last = value_generator<typename JsonMember::json_element_t>{ }(
+				m_last = value_generator<typename JsonMember::json_element_t>{ m_pos }(
 				  *m_engine, *m_state );
 			}
 		}
@@ -438,8 +512,16 @@ namespace daw::data_gen::datagen_details {
 	};
 
 	template<typename JsonMember>
-	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Array>>> {
+	struct value_generator<
+	  JsonMember,
+	  std::enable_if_t<member_is_parse_type_v<JsonMember, JsonParseTypes::Array>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -462,7 +544,14 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Custom>>> {
+	                                     JsonMember, JsonParseTypes::Custom>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -487,7 +576,14 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember>
 	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::KeyValue>>> {
+	                                     JsonMember, JsonParseTypes::KeyValue>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -516,9 +612,16 @@ namespace daw::data_gen::datagen_details {
 		  state.path = DAW_MOVE( old_path );
 		} );
 		state.path = fmt::format(
-		  "{}.{}", old_path, static_cast<std::string_view>( JsonMember::name ) );*/
-		return value_generator<daw::json::json_link_no_name<JsonMember>>{ }(
-		  reng, state );
+		  "{}.{}", old_path, static_cast<std::string_view>( JsonMember::name )
+		);*/
+		if constexpr( daw::json::json_details::is_a_json_type_v<JsonMember> and
+		              not daw::json::json_details::is_no_name_v<JsonMember> ) {
+			return value_generator<JsonMember>{
+			  daw::string_view( JsonMember::name ) }( reng, state );
+		} else {
+			return value_generator<daw::json::json_link_no_name<JsonMember>>{ "" }(
+			  reng, state );
+		}
 	}
 
 	template<typename, typename>
@@ -526,7 +629,9 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember, typename... JsonMembers>
 	struct class_generator<JsonMember,
-	                       daw::json::json_member_list<JsonMembers...>> {
+	                       daw::json::json_member_list<JsonMembers...>>
+	  : member_id {
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -541,7 +646,9 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember, typename... JsonMembers>
 	struct class_generator<JsonMember,
-	                       daw::json::json_tuple_member_list<JsonMembers...>> {
+	                       daw::json::json_tuple_member_list<JsonMembers...>>
+	  : member_id {
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
@@ -556,17 +663,29 @@ namespace daw::data_gen::datagen_details {
 	};
 
 	template<typename JsonMember>
-	struct value_generator<JsonMember, std::enable_if_t<member_is_parse_type_v<
-	                                     JsonMember, JsonParseTypes::Class>>> {
+	inline constexpr bool has_name =
+	  not daw::json::json_details::is_no_name_v<JsonMember>;
+
+	template<typename JsonMember>
+	struct value_generator<
+	  JsonMember,
+	  std::enable_if_t<member_is_parse_type_v<JsonMember, JsonParseTypes::Class>>>
+	  : member_id {
+
+		value_generator( daw::string_view name )
+		  : member_id( name ) {}
+		value_generator( std::size_t indice )
+		  : member_id( indice ) {}
+
 		using type = typename JsonMember::parse_to_t;
 
 		template<typename RandomEngine, typename State>
 		DAW_ATTRIB_FLATTEN type operator( )( RandomEngine &reng,
 		                                     State &state ) const {
-
+			std::cout << "name: " << to_string( ) << '\n';
 			return class_generator<JsonMember, daw::json::json_data_contract_trait_t<
-			                                     typename JsonMember::base_type>>{ }(
-			  reng, state );
+			                                     typename JsonMember::base_type>>{
+			  *this }( reng, state );
 		}
 	};
 } // namespace daw::data_gen::datagen_details
