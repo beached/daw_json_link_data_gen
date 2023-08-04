@@ -17,11 +17,5 @@ FetchContent_Declare(
         GIT_TAG v3
 )
 
-FetchContent_Declare(
-        fmtlib
-        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-        GIT_TAG 9.1.0
-)
-
-FetchContent_MakeAvailable( daw_json_link fmtlib )
+FetchContent_MakeAvailable( daw_json_link )
 

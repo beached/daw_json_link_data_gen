@@ -22,7 +22,6 @@ if( NOT DAW_USE_PACKAGE_MANAGEMENT )
    add_subdirectory( extern )
 else()
     find_package( daw-json-link REQUIRED )
-    find_package( fmt REQUIRED )
 endif()
 
 include( GNUInstallDirs )
@@ -36,7 +35,7 @@ set( PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include )
 
 add_library( ${PROJECT_NAME} INTERFACE )
 add_library( daw::${PROJECT_NAME} ALIAS ${PROJECT_NAME} )
-target_link_libraries( ${PROJECT_NAME} INTERFACE daw::daw-json-link $<BUILD_INTERFACE:fmt::fmt-header-only> )
+target_link_libraries( ${PROJECT_NAME} INTERFACE daw::daw-json-link )
 
 target_compile_features( ${PROJECT_NAME} INTERFACE cxx_std_17 )
 target_include_directories( ${PROJECT_NAME}

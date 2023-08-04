@@ -4,8 +4,7 @@
   "version": "0.1.0",
   "dependencies": [
     "boost-container",
-    "daw-json-link",
-    "fmt"
+    "daw-json-link"
   ]
 }
 

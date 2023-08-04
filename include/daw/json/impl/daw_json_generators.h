@@ -13,7 +13,6 @@
 #include <daw/daw_scope_guard.h>
 #include <daw/json/daw_json_link.h>
 
-#include <fmt/format.h>
 #include <random>
 #include <type_traits>
 
@@ -510,13 +509,6 @@ namespace daw::data_gen::datagen_details {
 
 	template<typename JsonMember, typename RandomEngine, typename State>
 	constexpr auto visit_json_member( RandomEngine &reng, State &state ) {
-		/*
-		auto old_path = DAW_MOVE( state.path );
-		auto const ae = daw::on_exit_success( [&] {
-		  state.path = DAW_MOVE( old_path );
-		} );
-		state.path = fmt::format(
-		  "{}.{}", old_path, static_cast<std::string_view>( JsonMember::name ) );*/
 		return value_generator<daw::json::json_link_no_name<JsonMember>>{ }(
 		  reng, state );
 	}
